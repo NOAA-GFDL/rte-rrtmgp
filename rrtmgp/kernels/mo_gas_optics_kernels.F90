@@ -16,7 +16,9 @@
 
 module mo_gas_optics_kernels
   use mo_rte_kind,      only : wp, wl
+  use mo_rte_util_array,only : zero_array
   implicit none
+  public
 contains
   ! --------------------------------------------------------------------------------------
   ! Compute interpolation coefficients
@@ -298,7 +300,7 @@ contains
     ! local variables
     real(wp) :: tau_major(ngpt) ! major species optical depth
     ! local index
-    integer :: icol, ilay, iflav, ibnd, igpt, itropo
+    integer :: icol, ilay, iflav, ibnd, itropo
     integer :: gptS, gptE
 
     ! -----------------
@@ -363,10 +365,10 @@ contains
     real(wp),    dimension(ngpt,nlay,ncol),      intent(inout) :: tau
     ! -----------------
     ! local variables
-    real(wp), parameter :: PaTohPa = 0.01
+    real(wp), parameter :: PaTohPa = 0.01_wp
     real(wp) :: vmr_fact, dry_fact             ! conversion from column abundance to dry vol. mixing ratio;
-    real(wp) :: scaling, kminor_loc            ! minor species absorption coefficient, optical depth
-    integer  :: icol, ilay, iflav, igpt, imnr
+    real(wp) :: scaling                        ! optical depth
+    integer  :: icol, ilay, iflav, imnr
     integer  :: gptS, gptE
     real(wp), dimension(ngpt) :: tau_minor
     ! -----------------
@@ -402,7 +404,7 @@ contains
                   if (scale_by_complement(imnr)) then ! scale by densities of all gases but the special one
                     scaling = scaling * (1._wp - col_gas(icol,ilay,idx_minor_scaling(imnr)) * vmr_fact * dry_fact)
                   else
-                    scaling = scaling *          col_gas(icol,ilay,idx_minor_scaling(imnr)) * vmr_fact * dry_fact
+                    scaling = scaling *         (col_gas(icol,ilay,idx_minor_scaling(imnr)) * vmr_fact * dry_fact)
                   endif
                 endif
               endif
@@ -453,7 +455,7 @@ contains
     ! -----------------
     ! local variables
     real(wp) :: k(ngpt) ! rayleigh scattering coefficient
-    integer  :: icol, ilay, iflav, ibnd, igpt, gptS, gptE
+    integer  :: icol, ilay, iflav, ibnd, gptS, gptE
     integer  :: itropo
     ! -----------------
     do ilay = 1, nlay
@@ -541,7 +543,7 @@ contains
     !
     do icol = 1, ncol
       planck_function(1:nbnd,1,icol) = interpolate1D(tsfc(icol)              , temp_ref_min, totplnk_delta, totplnk)
-      planck_function(1:nbnd,2,icol) = interpolate1D(tsfc(icol) + delta_Tsurf, temp_ref_min, totplnk_delta, totplnk) 
+      planck_function(1:nbnd,2,icol) = interpolate1D(tsfc(icol) + delta_Tsurf, temp_ref_min, totplnk_delta, totplnk)
       !
       ! Map to g-points
       !
@@ -719,7 +721,7 @@ contains
   !
   ! Combine absoprtion and Rayleigh optical depths for total tau, ssa, g
   !
-  pure subroutine combine_and_reorder_2str(ncol, nlay, ngpt, tau_abs, tau_rayleigh, tau, ssa, g) &
+  subroutine combine_and_reorder_2str(ncol, nlay, ngpt, tau_abs, tau_rayleigh, tau, ssa, g) &
       bind(C, name="combine_and_reorder_2str")
     integer,                             intent(in) :: ncol, nlay, ngpt
     real(wp), dimension(ngpt,nlay,ncol), intent(in   ) :: tau_abs, tau_rayleigh
@@ -728,12 +730,12 @@ contains
     integer  :: icol, ilay, igpt
     real(wp) :: t
     ! -----------------------
-    do icol = 1, ncol
-      do ilay = 1, nlay
-        do igpt = 1, ngpt
+    call zero_array(ncol, nlay, ngpt, g)
+    do ilay = 1, nlay
+      do igpt = 1, ngpt
+        do icol = 1, ncol
            t = tau_abs(igpt,ilay,icol) + tau_rayleigh(igpt,ilay,icol)
            tau(icol,ilay,igpt) = t
-           g  (icol,ilay,igpt) = 0._wp
            if(t > 2._wp * tiny(t)) then
              ssa(icol,ilay,igpt) = tau_rayleigh(igpt,ilay,icol) / t
            else
