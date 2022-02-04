@@ -46,7 +46,8 @@ contains
   function rte_sw(atmos, top_at_1,                 &
                   mu0, inc_flux,                   &
                   sfc_alb_dir, sfc_alb_dif,        &
-                  fluxes, inc_flux_dif) result(error_msg)
+                  fluxes, inc_flux_dif, gpt_flux_up_, &
+                  gpt_flux_dn_, gpt_flux_dir_) result(error_msg)
     class(ty_optical_props_arry), intent(in   ) :: atmos           ! Optical properties provided as arrays
     logical,                      intent(in   ) :: top_at_1        ! Is the top of the domain at index 1?
                                                                    ! (if not, ordering is bottom-to-top)
@@ -57,6 +58,9 @@ contains
     class(ty_fluxes),             intent(inout) :: fluxes          ! Class describing output calculations
     real(wp), dimension(:,:), optional, &
                                   intent(in   ) :: inc_flux_dif    ! incident diffuse flux at top of domain [W/m2] (ncol, ngpt)
+    real(wp), dimension(:,:,:), allocatable, intent(inout), optional :: gpt_flux_up_
+    real(wp), dimension(:,:,:), allocatable, intent(inout), optional :: gpt_flux_dn_
+    real(wp), dimension(:,:,:), allocatable, intent(inout), optional :: gpt_flux_dir_
     character(len=128)                          :: error_msg       ! If empty, calculation was successful
     ! --------------------------------
     !
@@ -214,6 +218,23 @@ contains
         error_msg = trim(atmos%get_name()) // ': ' // trim(error_msg)
       return
     end if
+
+    if (present(gpt_flux_up_)) then
+      if (allocated(gpt_flux_up_)) deallocate(gpt_flux_up_)
+      allocate(gpt_flux_up_(size(gpt_flux_up, 1), size(gpt_flux_up, 2), size(gpt_flux_up, 3)))
+      gpt_flux_up_(:,:,:) = gpt_flux_up(:,:,:)
+    endif
+    if (present(gpt_flux_dn_)) then
+      if (allocated(gpt_flux_dn_)) deallocate(gpt_flux_dn_)
+      allocate(gpt_flux_dn_(size(gpt_flux_dn, 1), size(gpt_flux_dn, 2), size(gpt_flux_dn, 3)))
+      gpt_flux_dn_(:,:,:) = gpt_flux_dn(:,:,:)
+    endif
+    if (present(gpt_flux_dir_)) then
+      if (allocated(gpt_flux_dir_)) deallocate(gpt_flux_dir_)
+      allocate(gpt_flux_dir_(size(gpt_flux_dir, 1), size(gpt_flux_dir, 2), size(gpt_flux_dir, 3)))
+      gpt_flux_dir_(:,:,:) = gpt_flux_dir(:,:,:)
+    endif
+
     !
     ! ...and reduce spectral fluxes to desired output quantities
     !
