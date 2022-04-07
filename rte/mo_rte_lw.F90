@@ -47,7 +47,7 @@ module mo_rte_lw
   implicit none
   private
 
-  public :: rte_lw
+  public :: rte_lw, expand_and_transpose
 contains
   ! --------------------------------------------------
   !
