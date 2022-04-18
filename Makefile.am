@@ -6,6 +6,7 @@ lib_LTLIBRARIES = librte.la librrtmgp.la
 rte = $(top_srcdir)/rte
 librte_la_SOURCES = $(rte)/mo_fluxes.F90 \
                     $(rte)/mo_optical_props.F90 \
+                    $(rte)/mo_rte_config.F90 \
                     $(rte)/mo_rte_kind.F90 \
                     $(rte)/mo_rte_lw.F90 \
                     $(rte)/mo_rte_sw.F90 \
@@ -19,6 +20,7 @@ $(rte)/mo_fluxes.lo: $(rte)/mo_rte_kind.lo \
                      $(rte)/mo_optical_props.lo \
                      $(rte)/mo_rte_util_array.lo
 $(rte)/mo_optical_props.lo: $(rte)/mo_rte_kind.lo \
+                            $(rte)/mo_rte_config.lo \
                             $(rte)/mo_rte_util_array.lo \
                             $(rte)/$(kernels)/mo_optical_props_kernels.lo
 $(rte)/mo_rte_lw.lo: $(rte)/mo_rte_kind.lo \
