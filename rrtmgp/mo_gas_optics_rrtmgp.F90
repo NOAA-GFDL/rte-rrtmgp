@@ -222,7 +222,7 @@ contains
                           optical_props, sources,           &
                           col_dry, tlev) result(error_msg)
     ! inputs
-    class(ty_gas_optics_rrtmgp), intent(in) :: this
+    class(ty_gas_optics_rrtmgp), intent(inout) :: this
     real(wp), dimension(:,:), intent(in   ) :: play, &   ! layer pressures [Pa, mb]; (ncol,nlay)
                                                plev, &   ! level pressures [Pa, mb]; (ncol,nlay+1)
                                                tlay      ! layer temperatures [K]; (ncol,nlay)
@@ -332,9 +332,9 @@ contains
   function gas_optics_ext(this,                         &
                           play, plev, tlay, gas_desc,   & ! mandatory inputs
                           optical_props, toa_src,       & ! mandatory outputs
-                          col_dry) result(error_msg)      ! optional input
+                          col_dry, cos_zen, tlev) result(error_msg)      ! optional input
 
-    class(ty_gas_optics_rrtmgp), intent(in) :: this
+    class(ty_gas_optics_rrtmgp), intent(inout) :: this
     real(wp), dimension(:,:), intent(in   ) :: play, &   ! layer pressures [Pa, mb]; (ncol,nlay)
                                                plev, &   ! level pressures [Pa, mb]; (ncol,nlay+1)
                                                tlay      ! layer temperatures [K]; (ncol,nlay)
@@ -348,6 +348,10 @@ contains
     ! Optional inputs
     real(wp), dimension(:,:), intent(in   ), &
                            optional, target :: col_dry ! Column dry amount; dim(ncol,nlay)
+    real(wp), dimension(:), intent(in   ), &
+                           optional :: cos_zen ! Not used.
+    real(wp), dimension(:,:), intent(in   ), &
+                           optional :: tlev ! Not used.
     ! ----------------------------------------------------------
     ! Local variables
     ! Interpolation coefficients for use in source function

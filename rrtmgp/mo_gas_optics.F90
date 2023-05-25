@@ -49,9 +49,9 @@ module mo_gas_optics
     function gas_optics_ext_abstract(this,                         &
                                      play, plev, tlay, gas_desc,   & ! mandatory inputs
                                      optical_props, toa_src,       & ! mandatory outputs
-                                     col_dry) result(error_msg)      ! optional input
+                                     col_dry, cos_zen, tlev) result(error_msg)      ! optional input
       import ty_gas_optics, wp, ty_gas_concs, ty_optical_props_arry
-      class(ty_gas_optics), intent(in) :: this
+      class(ty_gas_optics), intent(inout) :: this
       real(wp), dimension(:,:), intent(in   ) :: play, &   ! layer pressures [Pa, mb]; (ncol,nlay)
                                                  plev, &   ! level pressures [Pa, mb]; (ncol,nlay+1)
                                                  tlay      ! layer temperatures [K]; (ncol,nlay)
@@ -63,6 +63,10 @@ module mo_gas_optics
       ! Optional inputs
       real(wp), dimension(:,:), intent(in   ), &
                              optional, target :: col_dry ! Column dry amount; dim(ncol,nlay)
+      real(wp), dimension(:), intent(in   ), &
+                             optional :: cos_zen ! Cosine of solar zenith angle; dim(ncol)
+      real(wp), dimension(:,:), intent(in   ), &
+                             optional :: tlev ! level temperature [K]; (ncol,nlay+1)
     end function gas_optics_ext_abstract
     !--------------------------------------------------------------------------------------------------------------------
     !
@@ -74,7 +78,7 @@ module mo_gas_optics
                                      optical_props, sources,           &
                                      col_dry, tlev) result(error_msg)
       import ty_gas_optics, wp, ty_gas_concs, ty_optical_props_arry, ty_source_func_lw
-      class(ty_gas_optics),     intent(in   ) :: this
+      class(ty_gas_optics),     intent(inout) :: this
       real(wp), dimension(:,:), intent(in   ) :: play, &   ! layer pressures [Pa, mb]; (ncol,nlay)
                                                  plev, &   ! level pressures [Pa, mb]; (ncol,nlay+1)
                                                  tlay      ! layer temperatures [K]; (ncol,nlay)
