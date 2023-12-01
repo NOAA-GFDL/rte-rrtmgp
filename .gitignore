@@ -58,14 +58,24 @@ libtool
 # Intel vectorization reports
 *.optrpt
 
-# http://www.gnu.org/software/m4/
-m4/libtool.m4
-m4/ltoptions.m4
-m4/ltsugar.m4
-m4/ltversion.m4
-m4/lt~obsolete.m4
+# Netcdf file during testing
+examples/*/*.nc
+examples/*/*/*.nc
 
-# local binaries.
-/rrtmgp_rfmip_lw
-/rrtmgp_rfmip_sw
-/rrtmgp_allsky
+# Jupyter notebooks
+.ipynb_checkpoints
+
+# Intel code coverage
+*.dyn
+*.dpi
+*.spi
+*.spl
+*.HTML
+*.html
+*.gif
+
+# gh-pages directory
+public
+
+# Ruby stuff
+**/Gemfile.lock

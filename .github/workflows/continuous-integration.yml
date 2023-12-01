@@ -1,143 +1,101 @@
 name: Continuous Integration
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore:
+    - documentation
+  pull_request:
+    branches-ignore:
+    - documentation
+
+defaults:
+  run:
+    # Enable Conda environment by using the login shell:
+    shell: bash -leo pipefail {0}
 
 jobs:
   CI:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
-        fortran-compiler:  [gfortran-9, gfortran-10]
-        rte-kernels: [default, openacc]
+        fortran-compiler: [gfortran-10, gfortran-11, gfortran-12]
+        fpmodel: [DP, SP]
     env:
+      # Core variables:
       FC: ${{ matrix.fortran-compiler }}
-      FCFLAGS: "-ffree-line-length-none -m64 -std=f2008 -march=native -fbounds-check -finit-real=nan -g -DUSE_CBOOL"
-      CC: gcc
-      NCHOME: /home/runner/netcdf-c
-      NFHOME: /home/runner/netcdf-fortran
-      RFMIP_DIR: /home/runner/rfmip-files
+      FCFLAGS: "-ffree-line-length-none -m64 -std=f2008 -march=native -fbounds-check -fmodule-private -fimplicit-none -finit-real=nan -g -DRTE_USE_CBOOL -DRTE_USE_${{ matrix.fpmodel }}"
+      # Make variables:
+      NFHOME: /usr
+      RRTMGP_ROOT: ${{ github.workspace }}
+      RRTMGP_DATA: ${{ github.workspace }}/rrtmgp-data
+      RUN_CMD:
+      FAILURE_THRESHOLD: 7.e-4
     steps:
-    - name: Update system packages
-      run: sudo apt-get update
-    ############################################################################
     #
-    # Compilers....
+    # Relax failure thresholds for single precision
     #
-    # Gfortran 10 not available in Github CI stack, so install
+    - name: Relax failure threshold for single precision
+      if: matrix.fpmodel == 'SP'
+      run: echo "FAILURE_THRESHOLD=3.5e-1" >> $GITHUB_ENV
     #
-    - name: gfortran-10 setup compiler
-      if: contains(matrix.fortran-compiler, 'gfortran-10')
-      run: |
-        sudo apt-get install gfortran-10 gcc-10
-        echo "CC=gcc-10" >> $GITHUB_ENV
-
-    ############################################################################
+    # Check out repository under $GITHUB_WORKSPACE
     #
-    # Netcdf C and Fortran
-    #
-    - name: Install HDF5 library
-      run: |
-        sudo apt-get install libhdf5-dev libcurl4-gnutls-dev hdf5-helpers
-        dpkg -L libhdf5-dev
-
-    # Skipping this for now - netCDF configure doesn't see the HDF libararies
-    - name: cache-netcdf-c
-      id: cache-netcdf-c
-      uses: actions/cache@v2
-      with:
-        path: /home/runner/netcdf-c
-        key: netcdf-c-4.7.4a-${{ runner.os }}-${{ matrix.fortran-compiler }}
-
-    - name: Install netcdf C library from source
-      if: steps.cache-netcdf-c.outputs.cache-hit != 'true'
-      env:
-        CPPFLAGS: -I/usr/include/hdf5/serial
-        LDFLAGS: -L/usr/lib/x86_64-linux-gnu/hdf5/serial/
-      run: |
-        ${CC} --version
-        git clone https://github.com/Unidata/netcdf-c.git --branch v4.7.4
-        cd netcdf-c
-        ls /usr/include
-        ./configure --prefix=${NCHOME}
-        make -j
-        sudo make install
-
-    # Would be great to encode version info
-    - name: cache-netcdf-fortran
-      id: cache-netcdf-fortran
-      uses: actions/cache@v2
-      with:
-        path: /home/runner/netcdf-fortran
-        key: netcdf-fortran-4.5.3-${{ runner.os }}-${{ matrix.fortran-compiler }}
-
-    - name: Build NetCDF Fortran library
-      # Here too it would be nice to use the environment to specify netcdf-c location
-      env:
-        CPPFLAGS: -I/home/runner/netcdf-c/include
-        LDFLAGS: -L/home/runner/netcdf-c/lib
-        LD_LIBRARY_PATH: /home/runner/netcdf-c/lib
-        FCFLAGS: -fPIC
-      if: steps.cache-netcdf-fortran.outputs.cache-hit != 'true'
-      run: |
-        echo ${TEST}
-        ${FC} --version
-        git clone https://github.com/Unidata/netcdf-fortran.git --branch v4.5.3
-        cd netcdf-fortran
-        echo ${CPPFLAGS}
-        ./configure --prefix=${NFHOME}
-        make -j
-        sudo make install
-    ############################################################################
-    # Checks out repository under $GITHUB_WORKSPACE
     - name: Check out code
-      uses: actions/checkout@v2
-
-    - name: Environmental variables
-      run: echo "RRTMGP_ROOT=${GITHUB_WORKSPACE}"        >> $GITHUB_ENV
-
-    - name: Make library, examples, tests
-      env:
-        RTE_KERNELS: ${{ matrix.rte-kernels }}
+      uses: actions/checkout@v4
+    #
+    # Check out data
+    #
+    - name: Check out data
+      uses: actions/checkout@v4
+      with:
+        repository: earth-system-radiation/rrtmgp-data
+        path: rrtmgp-data
+    #
+    # Synchronize the package index
+    #
+    - name: Synchronize the package index
+      run: sudo apt-get update
+    #
+    # Install NetCDF-Fortran (compatible with all compilers)
+    #
+    - name: Install NetCDF-Fortran
+      run: sudo apt-get install libnetcdff-dev
+    #
+    # Cache Conda packages
+    #
+    - name: Cache Conda packages
+      uses: actions/cache@v3
+      with:
+        path: ~/conda_pkgs_dir
+        key: conda-pkgs
+    #
+    # Set up Conda
+    #
+    - name: Set up Conda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        miniforge-version: latest
+        activate-environment: rte_rrtmgp_test
+        environment-file: environment-noplots.yml
+        python-version: 3.9
+        auto-activate-base: false
+        # Use the cache properly:
+        use-only-tar-bz2: true
+    #
+    # Build libraries, examples and tests
+    #
+    - name: Build libraries, examples and tests
       run: |
-        cd ${RRTMGP_ROOT}
-        ${FC} --version
+        $FC --version
         make libs
         make -C build separate-libs
-
-    ############################################################################
-    # Set up Python and packages
     #
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.7
-    - name: Setup conda
-      uses: s-weigand/setup-conda@v1
-      with:
-        python-version: 3.7
-    - name: Install python packages
-      run: conda install --yes urllib3 netcdf4 xarray dask scipy matplotlib seaborn colorcet
-    ############################################################################
-    - name: Cache RFMIP files
-      id: cache-rfmip-files
-      uses: actions/cache@v2
-      with:
-        path: /home/runner/rfmip-files # Same as #{RFMIP_DIR}
-        key: rfmip-files
-
-    - name: Stage RFMIP files
-      if: steps.cache-rfmip-files.outputs.cache-hit != 'true'
-      run: |
-        mkdir -p ${RFMIP_DIR}
-        cd ${RFMIP_DIR}
-        python ${RRTMGP_ROOT}/examples/rfmip-clear-sky/stage_files.py
-    ############################################################################
-    # Would be great to encode version info
-    - name: Run examples, tests
-      env:
-        LD_LIBRARY_PATH: /home/runner/netcdf-c/lib
-      run: |
-        export LD_LIBRARY_PATH=${NFHOME}/lib:${LD_LIBRARY_PATH}
-        make tests
-    - name: Comparison
-      run: |
-        make check
+    # Run examples and tests
+    #
+    - name: Run examples and tests
+      run: make tests
+    #
+    # Compare the results
+    #
+    - name: Compare the results
+      run: make check
