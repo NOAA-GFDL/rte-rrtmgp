@@ -53,7 +53,7 @@ module mo_gas_concentrations
     ! Data
     !
     character(len=32), dimension(:), allocatable, public :: gas_names ! Should make this private
-    type(conc_field),  dimension(:), allocatable, private :: concs
+    type(conc_field),  dimension(:), allocatable, public :: concs
     integer, private :: ncol = 0, nlay = 0
     contains
       !
